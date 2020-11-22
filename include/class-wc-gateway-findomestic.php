@@ -328,7 +328,7 @@ class WC_Gateway_Findomestic_Gateway extends WC_Payment_Gateway
     {
         if ($this->instructions && !$sent_to_admin && $this->id === $order->get_payment_method())
         {
-            echo wp_kses_post(wpautop(wptexturize($this->instructions)) . PHP_EOL);
+            echo wp_kses_post(wpautop(wptexturize($this->instructions)) . '</br><a href="' . $order->get_view_order_url() . '">Clicca qui per Completare la Richiesta di Finanziamento</a>' . PHP_EOL);
         }
     }
 
