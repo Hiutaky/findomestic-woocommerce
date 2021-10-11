@@ -5,37 +5,35 @@ class WC_Gateway_Findomestic_Gateway extends WC_Payment_Gateway
     public function __construct()
     {
         $this->id = 'findomestic';
-        $this->icon = 'https://docfunnel.app/wp-content/uploads/2020/03/findomestic-banca-logo-A-scelta.png';
+        $this->icon = WC_FINDOMESTIC_URL . 'public/img/findomestic-scelta.png';
         $this->has_fields = false;
         $this->method_title = _x('Findomestic', 'Pagamento Rateale', $this->id);
-        $this->method_description = __('Ti permette di ricevere pagamenti rateali tramite il Gateway Findomestic', $this->id);
+        $this->method_description = __('Accetta pagamenti rateali utilizzando Findomestic.', $this->id);
         $this->callbackUrl = get_home_url() . '/wp-json/findomestic/payment';
-        // Load the settings.
+        // Load the settings
         $this->init_form_fields();
         $this->init_settings();
 
-        // Define user set variables.
+        // Define user set variables
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
         $this->instructions = $this->get_option('instructions');
         $this->codice_fiscale = $this->get_option('codice_fiscale');
 
-        if (!$this->is_plugin_active('woocommerce/woocommerce.php') || ('findomestic-woocommerce.php' === basename(__FILE__)))
-        {
+        if ( ! $this->is_plugin_active('woocommerce/woocommerce.php') || ('findomestic-woocommerce.php' === basename(__FILE__))){
             return;
         }
 		
-
         // Actions.
-        add_action('woocommerce_update_options_payment_gateways_' . $this->id, array(
+        add_action('woocommerce_update_options_payment_gateways_' . $this->id, [
             $this,
             'process_admin_options'
-        ));
+        ]);
 
-        add_action('woocommerce_thankyou_' . $this->id, array(
+        add_action('woocommerce_thankyou_' . $this->id, [
             $this,
             'thankyou_page'
-        ));
+        ]);
 
 
         //Rimuove Findomestic se Totale Carrello < PRF_Value ( importo minimo finanziabile )
@@ -45,48 +43,60 @@ class WC_Gateway_Findomestic_Gateway extends WC_Payment_Gateway
         ]);
 
         if($this->codice_fiscale == 'yes'){
-          add_action('woocommerce_before_order_notes', array(
+          add_action('woocommerce_before_order_notes', [
               $this,
               'codice_fiscale_checkout_field'
-          ));
-          add_action('woocommerce_checkout_create_order', array(
+          ]);
+          add_action('woocommerce_checkout_create_order', [
               $this,
               'custom_checkout_field_update_order_meta'
-          ));
-          add_action('woocommerce_checkout_process', array(
+          ]);
+          add_action('woocommerce_checkout_process', [
               $this,
               'codice_fiscale_checkout_field_process'
-          ));
+           ]);
         }
 
         // Customer Emails.
         //
-        add_action('woocommerce_email_before_order_table', array(
+        add_action('woocommerce_email_before_order_table', [
             $this,
             'email_instructions'
-        ) , 10, 3);
+        ] , 10, 3);
+
+        wp_enqueue_editor();
+
+        add_action( 'admin_print_footer_scripts', function() {
+            ?>
+            <script>
+                jQuery(function(){
+                    wp.editor.initialize('woocommerce_findomestic_instructions');
+                });
+            </script>
+            <?php
+        }, 10, 2 );
 
     }
 
     public function remove_findomestic_on_amount($available_gateways){
-
-      if( !is_admin() ){
-        $order_total = WC()->cart->total;
-        if($order_total < $this->get_option('prf_value')){
-          foreach( $available_gateways as $gateways_id => $gateways ){
-            if( $gateways_id == 'findomestic') {
-                unset($available_gateways[$gateways_id]);
+        if( ! is_admin() ){
+            $order_total = WC()->cart->total;
+            $prf_value = $this->get_option('prf_value');
+            if($order_total < $prf_value || ! $prf_value ){
+                foreach( $available_gateways as $gateways_id => $gateways ){
+                    if( $gateways_id == 'findomestic') {
+                        unset($available_gateways[$gateways_id]);
+                    }
+                }
             }
         }
-      }
-    }
 
-      return $available_gateways;
+        return $available_gateways;
     }
 
     public function is_plugin_active($plugin)
     {
-        return (function_exists('is_plugin_active') ? is_plugin_active($plugin) : (in_array($plugin, apply_filters('active_plugins', ( array )get_option('active_plugins', array()))) || (is_multisite() && array_key_exists($plugin, ( array )get_site_option('active_sitewide_plugins', array())))));
+        return (function_exists('is_plugin_active') ? is_plugin_active($plugin) : (in_array($plugin, apply_filters('active_plugins', ( array )get_option('active_plugins', [] ))) || (is_multisite() && array_key_exists($plugin, ( array )get_site_option('active_sitewide_plugins', [] )))));
     }
 
     public function codice_fiscale_checkout_field_process()
@@ -123,15 +133,15 @@ class WC_Gateway_Findomestic_Gateway extends WC_Payment_Gateway
 
         echo '<div id="custom-codice-fiscale"><h2>' . __('Codice Fiscale') . '</h2>';
 
-        woocommerce_form_field('codice_fiscale', array(
+        woocommerce_form_field('codice_fiscale', [
             'type' => 'text',
-            'class' => array(
+            'class' => [
                 'form-row-wide'
-            ) ,
+            ],
             'label' => __('Codice Fiscale') ,
             'placeholder' => __('Inserisci il tuo Codice Fiscale') ,
             'required' => true,
-        ) , $checkout->get_value('codice_fiscale'));
+        ] , $checkout->get_value('codice_fiscale'));
 
         echo '</div>';
 
@@ -139,90 +149,90 @@ class WC_Gateway_Findomestic_Gateway extends WC_Payment_Gateway
 
     public function init_form_fields()
     {
-        $this->form_fields = array(
-            'enabled' => array(
+        $this->form_fields = [
+            'enabled' => [
                 'title' => __('Attiva/Disattiva', $this->id) ,
                 'type' => 'checkbox',
                 'label' => __('Attiva Findomestic', $this->id) ,
                 'default' => 'yes'
-            ) ,
-            'title' => array(
+            ] ,
+            'title' => [
                 'title' => __('Titolo', $this->id) ,
                 'type' => 'text',
                 'description' => __('Il testo che vedono gli utenti nel carrello.', $this->id) ,
                 'default' => __('Findomestic Rateale', $this->id) ,
-                'desc_tip' => true,
-            ) ,
-            'description' => array(
+                'desc_tip' => true
+            ],
+            'description' => [
                 'title' => __('Messaggio per gli Utenti', $this->id) ,
                 'type' => 'textarea',
                 'default' => 'Effettua comodamente i tuoi Acquisti utilizzando il Pagamento Rateale di Findomestic.'
-            ) ,
-            'tvei' => array(
+            ],
+            'tvei' => [
                 'title' => __('Codice Venditore TVEI', $this->id) ,
                 'type' => 'text',
                 'description' => __('Il codice Venditore fornito da Findomestic.', $this->id) ,
-                'desc_tip' => true,
-            ) ,
-            'prf_value' => array(
+                'desc_tip' => true
+            ],
+            'prf_value' => [
                 'title' => __('Valore primo PRF', $this->id) ,
                 'type' => 'text',
                 'description' => __('Inserisci il valore minimo (in Euro) del primo PRF (es. 200)', $this->id) ,
-                'desc_tip' => true,
-            ) ,
-            'prf' => array(
+                'desc_tip' => true
+            ],
+            'prf' => [
                 'title' => __('Codice PRF', $this->id) ,
                 'type' => 'text',
                 'description' => __('Il codice PRF fornito da Findomestic.', $this->id) ,
-                'desc_tip' => true,
-            ) ,
-            'prf_2_status' => array(
+                'desc_tip' => true
+            ],
+            'prf_2_status' => [
               'title' => __('Secondo PRF', $this->id),
               'type' => 'checkbox',
               'description' => __('Attiva solo se hai a disposizione un secondo PRF', $this->id),
               'desc_tip' => true,
-            ),
-            'prf_value_2' => array(
+            ],
+            'prf_value_2' => [
                 'title' => __('Valore Secondo PRF', $this->id) ,
                 'type' => 'text',
                 'description' => __('Inserisci il valore minimo (in Euro) del secondo PRF (es. 500)', $this->id) ,
                 'desc_tip' => true,
-                'custom_attributes' => $this->get_option('prf_2_status') == 'no' ? array('readonly' => 'readonly') : null,
-            ) ,
-            'prf_2' => array(
+                'custom_attributes' => $this->get_option('prf_2_status') == 'no' ? ['readonly' => 'readonly'] : null
+            ],
+            'prf_2' => [
                 'title' => __('Codice PRF 2', $this->id) ,
                 'type' => 'text',
                 'description' => __('Il codice PRF 2 fornito da Findomestic.', $this->id) ,
                 'desc_tip' => true,
-                'custom_attributes' => $this->get_option('prf_2_status') == 'no' ? array('readonly' => 'readonly') : null,
-            ) ,
-            'url-cliente' => array(
+                'custom_attributes' => $this->get_option('prf_2_status') == 'no' ? ['readonly' => 'readonly'] : null
+            ],
+            'url-cliente' => [
                 'title' => __('Identificativo Cliente', $this->id) ,
                 'type' => 'text',
                 'description' => __('L\'Identificativo Cliente fornito da Findomestic ( es. docfunnel ).', $this->id) ,
-                'desc_tip' => true,
-            ) ,
-            'instructions' => array(
+                'desc_tip' => true
+            ],
+            'instructions' => [
                 'title' => __('Istruzioni', $this->id) ,
                 'type' => 'textarea',
                 'description' => __('Le Istruzioni da Aggiungere nella Pagina di Conferma e nelle Email.', $this->id) ,
                 'default' => 'Abbiamo Ricevuto il Tuo Ordine, ma la richiesta di Pagamento è in attesa. </ br> Completa la Pratica di <b>richiesta di Finanziamento di Findomestic</b> per concludere l\'\ordine con successo',
-                'desc_tip' => true,
-            ) ,
-            'codice_fiscale' => array(
+                'desc_tip' => true
+            ],
+            'codice_fiscale' => [
                 'title' => __('Codice Fiscale', $this->id) ,
                 'type' => 'checkbox',
                 'description' => __('Crea un Campo Obbligatorio: Codice Fiscale al momento del Checkout.', $this->id) ,
-                'desc_tip' => true,
-            ) ,
-            'bottone' => array(
+                'desc_tip' => true
+            ],
+            'bottone' => [
                 'title' => __('Testo Bottone', $this->id) ,
                 'type' => 'text',
                 'description' => __('Testo per Avvio della Procedura di Richiesta Finanziamento', $this->id) ,
                 'default' => 'Avvia Pratica Findomestic',
                 'desc_tip' => true,
-            )
-        );
+            ]
+        ];
     }
 
     public function process_payment($order_id)
@@ -248,10 +258,10 @@ class WC_Gateway_Findomestic_Gateway extends WC_Payment_Gateway
             ->empty_cart();
 
         // Return thankyou redirect.
-        return array(
+        return [
             'result' => 'success',
             'redirect' => $this->get_return_url($order) ,
-        );
+        ];
     }
 
     public function thankyou_page($order_id)
@@ -274,7 +284,7 @@ class WC_Gateway_Findomestic_Gateway extends WC_Payment_Gateway
         $prf1_value = $this->get_option('prf_value_1');
         $prf2_value = $this->get_option('prf_value_2');
 
-        if($this->get_option('prf_2_status') != 'no'){
+        if($this->get_option('prf_2_status') != 'no' && $prf2_value){
           if(isset($prf1_value) && isset($prf2_value)){
             if ($total < $prf2_value && $prf2_value != 0 && $prf2_value > $prf1_value)
             {
@@ -318,7 +328,7 @@ class WC_Gateway_Findomestic_Gateway extends WC_Payment_Gateway
 				color: #0D5C63 !important;
 				border: 5px solid !important;
 				font-weight: 700!important;
-        background: #fff;
+                background: #fff;
 			}
 			</style>
 			<?php
